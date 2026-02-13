@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>G2G Weather Event Map (Grid + NOAA)</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <style>
+    :root { --bg:#0b1220; --panel:#0f1930; --line:#2a3552; --text:#fff; --muted:rgba(255,255,255,.85); }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--text); }
+    #topbar {
+      padding: 10px 12px;
+      background: var(--bg);
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    @media (min-width: 900px) {
+      #topbar { grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: end; }
+      #actions { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    }
+    .pill { padding: 8px 10px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+    label { font-size: 12px; color: var(--muted); display:block; margin-bottom: 4px; }
+    input, select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #111d38;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+    }
+    button {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #122043;
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { filter: brightness(1.1); }
+    #status { font-size: 13px; color: var(--muted); }
+    #status.err { color: #ffb4b4; }
+    #map { height: calc(100vh - 240px); width: 100vw; }
+    @media (min-width: 900px) { #map { height: calc(100vh - 152px); } }
+    .legend { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+    .dot { width: 10px; height: 10px; border-radius: 999px; display:inline-block; }
+    .dot.blue { background: #3b82f6; }
+    .dot.orange { background: #f59e0b; }
+    code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div id="topbar">
+    <div class="pill">
+      <label>Backend Base URL</label>
+      <input id="base" value="http://127.0.0.1:8002" />
+    </div>
+
+    <div class="pill">
+      <label>Counties (csv)</label>
+      <input id="counties" value="pasco,pinellas,hillsborough,manatee" />
+    </div>
+
+    <div class="pill">
+      <label>Open-Meteo window (days)</label>
+      <input id="daysGrid" type="number" min="1" max="60" value="30" />
+    </div>
+
+    <div class="pill">
+      <label>Grid threshold (mph)</label>
+      <input id="thrGrid" type="number" min="0" max="200" value="40" />
+    </div>
+
+    <div class="pill">
+      <label>Grid sample (1..9)</label>
+      <input id="sample" type="number" min="1" max="9" value="9" />
+    </div>
+
+    <div class="pill">
+      <label>NOAA window (days)</label>
+      <input id="daysNoaa" type="number" min="1" max="30" value="2" />
+    </div>
+
+    <div class="pill">
+      <label>NOAA threshold (mph)</label>
+      <input id="thrNoaa" type="number" min="0" max="200" value="10" />
+    </div>
+
+    <div class="pill">
+      <label>Limit (each layer)</label>
+      <input id="limit" type="number" min="1" max="1000" value="200" />
+    </div>
+
+    <div class="pill">
+      <label>Legend</label>
+      <div class="legend">
+        <span><span class="dot blue"></span> Grid events</span>
+        <span><span class="dot orange"></span> NOAA peaks</span>
+      </div>
+    </div>
+
+    <div id="actions" class="pill">
+      <button id="loadBtn">Load both layers</button>
+      <span id="status">Ready.</span>
+      <span style="opacity:.85;">Tip: Use <code>http://127.0.0.1:8002</code> locally; use your Render URL when deployed.</span>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <script>
+    const statusEl = document.getElementById("status");
+
+    function setStatus(msg, isErr=false) {
+      statusEl.textContent = msg;
+      statusEl.classList.toggle("err", !!isErr);
+    }
+
+    function baseUrl() {
+      return document.getElementById("base").value.trim().replace(/\/+$/, "");
+    }
+
+    function qs() {
+      return {
+        counties: document.getElementById("counties").value.trim(),
+        daysGrid: Number(document.getElementById("daysGrid").value),
+        thrGrid: Number(document.getElementById("thrGrid").value),
+        sample: Number(document.getElementById("sample").value),
+        daysNoaa: Number(document.getElementById("daysNoaa").value),
+        thrNoaa: Number(document.getElementById("thrNoaa").value),
+        limit: Number(document.getElementById("limit").value),
+      };
+    }
+
+    function buildGridUrl() {
+      const b = baseUrl();
+      const p = qs();
+      const v = Date.now();
+      return `${b}/events.geojson?counties=${encodeURIComponent(p.counties)}&days=${encodeURIComponent(p.daysGrid)}&threshold_mph=${encodeURIComponent(p.thrGrid)}&sample=${encodeURIComponent(p.sample)}&limit=${encodeURIComponent(p.limit)}&v=${v}`;
+    }
+
+    function buildNoaaUrl() {
+      const b = baseUrl();
+      const p = qs();
+      const v = Date.now();
+      // NOAA endpoint uses days/threshold/limit; other tuning params stay backend-side for now.
+      return `${b}/noaa.geojson?counties=${encodeURIComponent(p.counties)}&days=${encodeURIComponent(p.daysNoaa)}&threshold_mph=${encodeURIComponent(p.thrNoaa)}&limit=${encodeURIComponent(p.limit)}&v=${v}`;
+    }
+
+    // Map init
+    const map = L.map("map", { zoomControl: true }).setView([27.95, -82.46], 9);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    let gridLayer = null;
+    let noaaLayer = null;
+
+    function clearLayers() {
+      if (gridLayer) { gridLayer.remove(); gridLayer = null; }
+      if (noaaLayer) { noaaLayer.remove(); noaaLayer = null; }
+    }
+
+    function circleStyle(color) {
+      return {
+        radius: 6,
+        weight: 1,
+        color,
+        fillColor: color,
+        fillOpacity: 0.75
+      };
+    }
+
+    function pointToGrid(feature, latlng) {
+      return L.circleMarker(latlng, circleStyle("#3b82f6"));
+    }
+
+    function pointToNoaa(feature, latlng) {
+      return L.circleMarker(latlng, circleStyle("#f59e0b"));
+    }
+
+    function popupGrid(feature, layer) {
+      const p = feature?.properties || {};
+      layer.bindPopup(
+        `<b>Grid event</b><br/>county: <b>${p.county ?? ""}</b><br/>time: ${p.time ?? ""}<br/>gust: <b>${p.gust_mph ?? ""} mph</b><br/>sample: ${p.sample_points ?? ""}`
+      );
+    }
+
+    function popupNoaa(feature, layer) {
+      const p = feature?.properties || {};
+      layer.bindPopup(
+        `<b>NOAA peak</b><br/>station: <b>${p.station_id ?? ""}</b><br/>seed county: ${p.seed_county ?? ""}<br/>peak: <b>${p.peak_mph ?? ""} mph</b><br/>time: ${p.peak_time ?? ""}<br/>metric: ${p.metric ?? ""}`
+      );
+    }
+
+    async function fetchJsonWithTimeout(url, timeoutMs) {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        const resp = await fetch(url, { cache: "no-store", signal: controller.signal });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(`HTTP ${resp.status}: ${txt.slice(0, 200)}`);
+        }
+        return await resp.json();
+      } finally {
+        clearTimeout(t);
+      }
+    }
+
+    function safeCount(fc) {
+      const n = fc?.features?.length;
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function fitToBothLayers() {
+      const boundsList = [];
+      if (gridLayer) {
+        const b = gridLayer.getBounds();
+        if (b && b.isValid && b.isValid()) boundsList.push(b);
+      }
+      if (noaaLayer) {
+        const b = noaaLayer.getBounds();
+        if (b && b.isValid && b.isValid()) boundsList.push(b);
+      }
+      if (boundsList.length === 0) return;
+
+      // Combine bounds
+      let combined = boundsList[0];
+      for (let i = 1; i < boundsList.length; i++) {
+        combined = combined.extend(boundsList[i]);
+      }
+      if (combined.isValid()) map.fitBounds(combined.pad(0.15));
+    }
+
+    async function loadBoth() {
+      clearLayers();
+
+      const gridUrl = buildGridUrl();
+      const noaaUrl = buildNoaaUrl();
+
+      setStatus(`Loading… grid + NOAA`);
+
+      try {
+        // Grid usually fast; NOAA can be a few seconds. Give them separate timeouts.
+        const [gridFc, noaaFc] = await Promise.all([
+          fetchJsonWithTimeout(gridUrl, 12000),
+          fetchJsonWithTimeout(noaaUrl, 25000)
+        ]);
+
+        if (!gridFc || gridFc.type !== "FeatureCollection") throw new Error("Grid payload not FeatureCollection");
+        if (!noaaFc || noaaFc.type !== "FeatureCollection") throw new Error("NOAA payload not FeatureCollection");
+
+        gridLayer = L.geoJSON(gridFc, { pointToLayer: pointToGrid, onEachFeature: popupGrid }).addTo(map);
+        noaaLayer = L.geoJSON(noaaFc, { pointToLayer: pointToNoaa, onEachFeature: popupNoaa }).addTo(map);
+
+        fitToBothLayers();
+
+        setStatus(`Loaded grid=${safeCount(gridFc)} | NOAA=${safeCount(noaaFc)}.`);
+      } catch (err) {
+        console.error("Load failed:", err);
+        const name = err?.name || "Error";
+        const msg = err?.message || String(err);
+        setStatus(`Error: ${name} — ${msg}`, true);
+      }
+    }
+
+    document.getElementById("loadBtn").addEventListener("click", loadBoth);
+
+    // Auto-load on open
+    loadBoth();
+  </script>
+</body>
+</html>
