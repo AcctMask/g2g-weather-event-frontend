@@ -5,290 +5,480 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>G2G Weather Event Map (Grid + NOAA)</title>
 
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <style>
-    :root { --bg:#0b1220; --panel:#0f1930; --line:#2a3552; --text:#fff; --muted:rgba(255,255,255,.85); }
-    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--text); }
-    #topbar {
-      padding: 10px 12px;
-      background: var(--bg);
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(18, 28, 54, 0.92);
+      --panel2: rgba(12, 18, 36, 0.9);
+      --text: #e8eefc;
+      --muted: rgba(232, 238, 252, 0.7);
+      --border: rgba(232, 238, 252, 0.14);
+      --accent: #7aa2ff;
+      --danger: #ff7a7a;
+      --ok: #74d67a;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+    #app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+
+    .topbar {
+      padding: 14px 14px 10px;
       display: grid;
-      grid-template-columns: 1fr;
       gap: 10px;
-      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(15,22,45,.95), rgba(10,14,28,.75));
+      border-bottom: 1px solid var(--border);
     }
-    @media (min-width: 900px) {
-      #topbar { grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: end; }
-      #actions { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1.2fr 1.4fr 1fr 1fr 1fr 0.9fr 0.9fr 0.9fr;
+      gap: 10px;
+      align-items: end;
     }
-    .pill { padding: 8px 10px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
-    label { font-size: 12px; color: var(--muted); display:block; margin-bottom: 4px; }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px 12px;
+      min-height: 70px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
     input, select {
       width: 100%;
       box-sizing: border-box;
-      padding: 8px 10px;
       border-radius: 10px;
-      border: 1px solid var(--line);
-      background: #111d38;
+      padding: 10px 10px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
       color: var(--text);
-      font-size: 14px;
       outline: none;
+      font-family: var(--sans);
     }
-    button {
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--line);
-      background: #122043;
-      color: var(--text);
+
+    input.mono { font-family: var(--mono); font-size: 12px; }
+
+    .status {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+    .dot.blue { background: #4da3ff; }
+    .dot.orange { background: #ffb14d; }
+
+    .btn {
       cursor: pointer;
-      font-weight: 600;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(122,162,255,.18);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px 12px;
+      font-weight: 650;
+      transition: transform .04s ease;
+      user-select: none;
+      width: 100%;
     }
-    button:hover { filter: brightness(1.1); }
-    #status { font-size: 13px; color: var(--muted); }
-    #status.err { color: #ffb4b4; }
-    #map { height: calc(100vh - 240px); width: 100vw; }
-    @media (min-width: 900px) { #map { height: calc(100vh - 152px); } }
-    .legend { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
-    .dot { width: 10px; height: 10px; border-radius: 999px; display:inline-block; }
-    .dot.blue { background: #3b82f6; }
-    .dot.orange { background: #f59e0b; }
-    code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 6px; }
+    .btn:active { transform: translateY(1px); }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.25;
+    }
+
+    .error {
+      color: var(--danger);
+      font-weight: 650;
+    }
+    .ok {
+      color: var(--ok);
+      font-weight: 650;
+    }
+
+    #map { width: 100%; height: 100%; }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .legend-item { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; }
+
+    .popup {
+      font-family: var(--sans);
+      font-size: 12px;
+      line-height: 1.25;
+    }
+    .popup .title { font-weight: 800; margin-bottom: 6px; }
+    .popup .kv { margin: 2px 0; color: rgba(255,255,255,.88); }
+    .popup .kv span { color: rgba(255,255,255,.65); }
   </style>
 </head>
+
 <body>
-  <div id="topbar">
-    <div class="pill">
-      <label>Backend Base URL</label>
-      <input id="base" value="http://127.0.0.1:8002" />
-    </div>
+  <div id="app">
+    <div class="topbar">
+      <div class="row">
+        <div class="card">
+          <label>Backend Base URL</label>
+          <input id="baseUrl" class="mono" type="text" />
+          <div class="hint" id="baseUrlHint"></div>
+        </div>
 
-    <div class="pill">
-      <label>Counties (csv)</label>
-      <input id="counties" value="pasco,pinellas,hillsborough,manatee" />
-    </div>
+        <div class="card">
+          <label>Counties (csv)</label>
+          <input id="counties" type="text" value="pasco,pinellas,hillsborough,manatee" />
+          <div class="hint">Example: pasco,pinellas,hillsborough</div>
+        </div>
 
-    <div class="pill">
-      <label>Open-Meteo window (days)</label>
-      <input id="daysGrid" type="number" min="1" max="60" value="30" />
-    </div>
+        <div class="card">
+          <label>Open-Meteo window (days)</label>
+          <select id="gridDays">
+            <option>7</option><option>10</option><option selected>30</option><option>45</option><option>60</option>
+          </select>
+        </div>
 
-    <div class="pill">
-      <label>Grid threshold (mph)</label>
-      <input id="thrGrid" type="number" min="0" max="200" value="40" />
-    </div>
+        <div class="card">
+          <label>Grid threshold (mph)</label>
+          <input id="gridThreshold" type="number" min="0" step="1" value="40" />
+        </div>
 
-    <div class="pill">
-      <label>Grid sample (1..9)</label>
-      <input id="sample" type="number" min="1" max="9" value="9" />
-    </div>
+        <div class="card">
+          <label>Grid sample (1-9)</label>
+          <input id="gridSample" type="number" min="1" max="9" step="1" value="9" />
+        </div>
 
-    <div class="pill">
-      <label>NOAA window (days)</label>
-      <input id="daysNoaa" type="number" min="1" max="30" value="2" />
-    </div>
+        <div class="card">
+          <label>NOAA window (days)</label>
+          <select id="noaaDays">
+            <option>1</option><option selected>2</option><option>3</option><option>5</option><option>7</option>
+          </select>
+        </div>
 
-    <div class="pill">
-      <label>NOAA threshold (mph)</label>
-      <input id="thrNoaa" type="number" min="0" max="200" value="10" />
-    </div>
+        <div class="card">
+          <label>NOAA threshold (mph)</label>
+          <input id="noaaThreshold" type="number" min="0" step="1" value="10" />
+        </div>
 
-    <div class="pill">
-      <label>Limit (each layer)</label>
-      <input id="limit" type="number" min="1" max="1000" value="200" />
-    </div>
+        <div class="card">
+          <label>Limit (each layer)</label>
+          <input id="limit" type="number" min="1" step="1" value="200" />
+          <div class="legend" style="margin-top:8px">
+            <div class="legend-item"><span class="dot blue"></span> Grid events</div>
+            <div class="legend-item"><span class="dot orange"></span> NOAA peaks</div>
+          </div>
+        </div>
+      </div>
 
-    <div class="pill">
-      <label>Legend</label>
-      <div class="legend">
-        <span><span class="dot blue"></span> Grid events</span>
-        <span><span class="dot orange"></span> NOAA peaks</span>
+      <div class="status">
+        <div style="min-width: 170px;">
+          <button id="loadBtn" class="btn">Load both layers</button>
+        </div>
+
+        <div class="pill"><span>Backend:</span> <span id="backendVer">?</span></div>
+        <div class="pill"><span>Grid:</span> <span id="gridCount">0</span></div>
+        <div class="pill"><span>NOAA:</span> <span id="noaaCount">0</span></div>
+
+        <div class="pill" style="flex: 1 1 auto;">
+          <span id="msg" class="hint">Tip: In production we default to your Render backend automatically.</span>
+        </div>
       </div>
     </div>
 
-    <div id="actions" class="pill">
-      <button id="loadBtn">Load both layers</button>
-      <span id="status">Ready.</span>
-      <span style="opacity:.85;">Tip: Use <code>http://127.0.0.1:8002</code> locally; use your Render URL when deployed.</span>
-    </div>
+    <div id="map"></div>
   </div>
 
-  <div id="map"></div>
+<script>
+(function () {
+  // ----------------------------
+  // Helpers
+  // ----------------------------
+  const $ = (id) => document.getElementById(id);
 
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
+  const DEFAULT_BACKEND_RENDER = "https://g2g-weather-event-backend.onrender.com";
+  const DEFAULT_BACKEND_LOCAL  = "http://127.0.0.1:8002";
 
-  <script>
-    const statusEl = document.getElementById("status");
+  function isHosted() {
+    // If you're on Render (or any non-localhost origin), default to Render backend.
+    return !(location.hostname === "127.0.0.1" || location.hostname === "localhost");
+  }
 
-    function setStatus(msg, isErr=false) {
-      statusEl.textContent = msg;
-      statusEl.classList.toggle("err", !!isErr);
+  function readQueryBackend() {
+    const u = new URL(location.href);
+    const b = u.searchParams.get("backend");
+    return b ? b.replace(/\/+$/, "") : "";
+  }
+
+  function normalizeBase(url) {
+    return (url || "").trim().replace(/\/+$/, "");
+  }
+
+  function setMsg(text, kind) {
+    const el = $("msg");
+    el.textContent = text;
+    el.className = "hint" + (kind === "error" ? " error" : kind === "ok" ? " ok" : "");
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(url, { method: "GET" });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status} ${res.statusText} - ${body.slice(0,180)}`);
     }
+    return await res.json();
+  }
 
-    function baseUrl() {
-      return document.getElementById("base").value.trim().replace(/\/+$/, "");
-    }
+  function fmt(n) {
+    if (n === null || n === undefined) return "";
+    if (typeof n === "number") return Number.isFinite(n) ? n.toString() : "";
+    return String(n);
+  }
 
-    function qs() {
-      return {
-        counties: document.getElementById("counties").value.trim(),
-        daysGrid: Number(document.getElementById("daysGrid").value),
-        thrGrid: Number(document.getElementById("thrGrid").value),
-        sample: Number(document.getElementById("sample").value),
-        daysNoaa: Number(document.getElementById("daysNoaa").value),
-        thrNoaa: Number(document.getElementById("thrNoaa").value),
-        limit: Number(document.getElementById("limit").value),
-      };
-    }
+  // ----------------------------
+  // Base URL behavior (shareable)
+  // ----------------------------
+  // Priority:
+  // 1) ?backend=https://...
+  // 2) localStorage last value
+  // 3) auto-default: Render when hosted, localhost when local
+  const qb = readQueryBackend();
+  const lsKey = "g2g_base_url";
+  const saved = normalizeBase(localStorage.getItem(lsKey) || "");
+  const autoDefault = isHosted() ? DEFAULT_BACKEND_RENDER : DEFAULT_BACKEND_LOCAL;
+  const initialBase = normalizeBase(qb || saved || autoDefault);
 
-    function buildGridUrl() {
-      const b = baseUrl();
-      const p = qs();
-      const v = Date.now();
-      return `${b}/events.geojson?counties=${encodeURIComponent(p.counties)}&days=${encodeURIComponent(p.daysGrid)}&threshold_mph=${encodeURIComponent(p.thrGrid)}&sample=${encodeURIComponent(p.sample)}&limit=${encodeURIComponent(p.limit)}&v=${v}`;
-    }
+  $("baseUrl").value = initialBase;
+  $("baseUrlHint").innerHTML = isHosted()
+    ? `Hosted default: <span class="mono">${DEFAULT_BACKEND_RENDER}</span><br/>Override with <span class="mono">?backend=...</span>`
+    : `Local default: <span class="mono">${DEFAULT_BACKEND_LOCAL}</span><br/>Tip: Hosted uses Render backend automatically.`;
 
-    function buildNoaaUrl() {
-      const b = baseUrl();
-      const p = qs();
-      const v = Date.now();
-      // NOAA endpoint uses days/threshold/limit; other tuning params stay backend-side for now.
-      return `${b}/noaa.geojson?counties=${encodeURIComponent(p.counties)}&days=${encodeURIComponent(p.daysNoaa)}&threshold_mph=${encodeURIComponent(p.thrNoaa)}&limit=${encodeURIComponent(p.limit)}&v=${v}`;
-    }
+  $("baseUrl").addEventListener("change", () => {
+    const v = normalizeBase($("baseUrl").value);
+    $("baseUrl").value = v;
+    localStorage.setItem(lsKey, v);
+  });
 
-    // Map init
-    const map = L.map("map", { zoomControl: true }).setView([27.95, -82.46], 9);
+  // ----------------------------
+  // Map
+  // ----------------------------
+  let map, gridLayer, noaaLayer;
+
+  function initMap() {
+    map = L.map("map", { zoomControl: true }).setView([27.95, -82.45], 7);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
+      maxZoom: 18,
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
-    let gridLayer = null;
-    let noaaLayer = null;
+    gridLayer = L.layerGroup().addTo(map);
+    noaaLayer = L.layerGroup().addTo(map);
+  }
 
-    function clearLayers() {
-      if (gridLayer) { gridLayer.remove(); gridLayer = null; }
-      if (noaaLayer) { noaaLayer.remove(); noaaLayer = null; }
-    }
+  function clearLayers() {
+    gridLayer.clearLayers();
+    noaaLayer.clearLayers();
+  }
 
-    function circleStyle(color) {
-      return {
+  function addGeoJsonPointsToLayer(fc, layer, color, popupBuilder) {
+    if (!fc || !fc.features) return 0;
+    let count = 0;
+    fc.features.forEach((f) => {
+      if (!f || !f.geometry || f.geometry.type !== "Point") return;
+      const c = f.geometry.coordinates;
+      if (!Array.isArray(c) || c.length < 2) return;
+      const lng = c[0], lat = c[1];
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      const m = L.circleMarker([lat, lng], {
         radius: 6,
         weight: 1,
-        color,
-        fillColor: color,
-        fillOpacity: 0.75
-      };
+        opacity: 0.9,
+        fillOpacity: 0.85,
+        color: color,
+        fillColor: color
+      });
+
+      const html = popupBuilder ? popupBuilder(f) : "";
+      if (html) m.bindPopup(html, { maxWidth: 340 });
+
+      m.addTo(layer);
+      count++;
+    });
+    return count;
+  }
+
+  function fitToAll() {
+    const layers = [];
+    gridLayer.eachLayer(l => layers.push(l));
+    noaaLayer.eachLayer(l => layers.push(l));
+    if (layers.length === 0) return;
+
+    const group = L.featureGroup(layers);
+    try {
+      map.fitBounds(group.getBounds().pad(0.2));
+    } catch (e) {}
+  }
+
+  function buildGridPopup(f) {
+    const p = f.properties || {};
+    const title = p.title || p.name || "Grid event";
+    const mph = p.max_mph ?? p.wind_mph ?? p.threshold_mph ?? "";
+    const when = p.when || p.time || p.ts || "";
+    const county = p.county || "";
+    return `
+      <div class="popup">
+        <div class="title">${escapeHtml(title)}</div>
+        ${kv("County", county)}
+        ${kv("Max mph", fmt(mph))}
+        ${kv("When", when)}
+        ${kv("Source", "Open-Meteo grid")}
+      </div>
+    `;
+  }
+
+  function buildNoaaPopup(f) {
+    const p = f.properties || {};
+    // Station identity (now): station + name
+    // Address-like identity (next): add p.address or p.place from backend enrichment
+    const station = p.station || p.station_id || p.stationIdentifier || "";
+    const name = p.station_name || p.name || "";
+    const mph = p.peak_mph ?? p.max_mph ?? p.wind_mph ?? "";
+    const when = p.peak_time || p.time || p.ts || "";
+    const county = p.county || "";
+    const place = p.place || p.address || ""; // future enrichment
+    return `
+      <div class="popup">
+        <div class="title">NOAA peak</div>
+        ${kv("Station", station)}
+        ${kv("Name", name)}
+        ${kv("Place", place)}
+        ${kv("County", county)}
+        ${kv("Peak mph", fmt(mph))}
+        ${kv("When", when)}
+        ${kv("Source", "NWS / NOAA station obs")}
+      </div>
+    `;
+  }
+
+  function kv(k, v) {
+    if (!v) return "";
+    return `<div class="kv"><span>${escapeHtml(k)}:</span> ${escapeHtml(String(v))}</div>`;
+  }
+
+  function escapeHtml(s) {
+    return (s || "").replace(/[&<>"']/g, (c) => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    }[c]));
+  }
+
+  // ----------------------------
+  // Loading (sequential: grid -> NOAA)
+  // ----------------------------
+  async function loadAll() {
+    const base = normalizeBase($("baseUrl").value);
+    if (!base) {
+      setMsg("Missing backend base URL.", "error");
+      return;
     }
+    localStorage.setItem(lsKey, base);
 
-    function pointToGrid(feature, latlng) {
-      return L.circleMarker(latlng, circleStyle("#3b82f6"));
-    }
+    const counties = $("counties").value.trim();
+    const gridDays = Number($("gridDays").value);
+    const gridThreshold = Number($("gridThreshold").value);
+    const gridSample = Number($("gridSample").value);
+    const noaaDays = Number($("noaaDays").value);
+    const noaaThreshold = Number($("noaaThreshold").value);
+    const limit = Number($("limit").value);
 
-    function pointToNoaa(feature, latlng) {
-      return L.circleMarker(latlng, circleStyle("#f59e0b"));
-    }
+    clearLayers();
+    $("gridCount").textContent = "0";
+    $("noaaCount").textContent = "0";
 
-    function popupGrid(feature, layer) {
-      const p = feature?.properties || {};
-      layer.bindPopup(
-        `<b>Grid event</b><br/>county: <b>${p.county ?? ""}</b><br/>time: ${p.time ?? ""}<br/>gust: <b>${p.gust_mph ?? ""} mph</b><br/>sample: ${p.sample_points ?? ""}`
-      );
-    }
+    $("loadBtn").disabled = true;
+    setMsg("Loading grid events…", "");
 
-    function popupNoaa(feature, layer) {
-      const p = feature?.properties || {};
-      layer.bindPopup(
-        `<b>NOAA peak</b><br/>station: <b>${p.station_id ?? ""}</b><br/>seed county: ${p.seed_county ?? ""}<br/>peak: <b>${p.peak_mph ?? ""} mph</b><br/>time: ${p.peak_time ?? ""}<br/>metric: ${p.metric ?? ""}`
-      );
-    }
-
-    async function fetchJsonWithTimeout(url, timeoutMs) {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), timeoutMs);
-
+    try {
+      // Version
       try {
-        const resp = await fetch(url, { cache: "no-store", signal: controller.signal });
-        if (!resp.ok) {
-          const txt = await resp.text();
-          throw new Error(`HTTP ${resp.status}: ${txt.slice(0, 200)}`);
-        }
-        return await resp.json();
-      } finally {
-        clearTimeout(t);
+        const v = await fetchJson(`${base}/version`);
+        $("backendVer").textContent = v && v.version ? v.version : "?";
+      } catch (e) {
+        $("backendVer").textContent = "?";
       }
+
+      // 1) Grid first
+      const gridUrl = `${base}/events.geojson?counties=${encodeURIComponent(counties)}&days=${gridDays}&threshold_mph=${gridThreshold}&sample=${gridSample}&limit=${limit}`;
+      const gridFc = await fetchJson(gridUrl);
+      const gridN = addGeoJsonPointsToLayer(gridFc, gridLayer, "#4da3ff", buildGridPopup);
+      $("gridCount").textContent = String(gridN);
+
+      setMsg("Loading NOAA station peaks…", "");
+
+      // 2) NOAA second
+      const noaaUrl = `${base}/noaa.geojson?counties=${encodeURIComponent(counties)}&days=${noaaDays}&threshold_mph=${noaaThreshold}&limit=${limit}`;
+      const noaaFc = await fetchJson(noaaUrl);
+      const noaaN = addGeoJsonPointsToLayer(noaaFc, noaaLayer, "#ffb14d", buildNoaaPopup);
+      $("noaaCount").textContent = String(noaaN);
+
+      fitToAll();
+      setMsg(`Loaded grid=${gridN} | NOAA=${noaaN}. Share this URL with team: (they should not need localhost).`, "ok");
+    } catch (err) {
+      console.error(err);
+      setMsg(`Error: ${err?.message || err}`, "error");
+    } finally {
+      $("loadBtn").disabled = false;
     }
+  }
 
-    function safeCount(fc) {
-      const n = fc?.features?.length;
-      return Number.isFinite(n) ? n : 0;
-    }
+  // ----------------------------
+  // Boot
+  // ----------------------------
+  window.addEventListener("DOMContentLoaded", () => {
+    initMap();
+    $("loadBtn").addEventListener("click", loadAll);
 
-    function fitToBothLayers() {
-      const boundsList = [];
-      if (gridLayer) {
-        const b = gridLayer.getBounds();
-        if (b && b.isValid && b.isValid()) boundsList.push(b);
-      }
-      if (noaaLayer) {
-        const b = noaaLayer.getBounds();
-        if (b && b.isValid && b.isValid()) boundsList.push(b);
-      }
-      if (boundsList.length === 0) return;
-
-      // Combine bounds
-      let combined = boundsList[0];
-      for (let i = 1; i < boundsList.length; i++) {
-        combined = combined.extend(boundsList[i]);
-      }
-      if (combined.isValid()) map.fitBounds(combined.pad(0.15));
-    }
-
-    async function loadBoth() {
-      clearLayers();
-
-      const gridUrl = buildGridUrl();
-      const noaaUrl = buildNoaaUrl();
-
-      setStatus(`Loading… grid + NOAA`);
-
-      try {
-        // Grid usually fast; NOAA can be a few seconds. Give them separate timeouts.
-        const [gridFc, noaaFc] = await Promise.all([
-          fetchJsonWithTimeout(gridUrl, 12000),
-          fetchJsonWithTimeout(noaaUrl, 25000)
-        ]);
-
-        if (!gridFc || gridFc.type !== "FeatureCollection") throw new Error("Grid payload not FeatureCollection");
-        if (!noaaFc || noaaFc.type !== "FeatureCollection") throw new Error("NOAA payload not FeatureCollection");
-
-        gridLayer = L.geoJSON(gridFc, { pointToLayer: pointToGrid, onEachFeature: popupGrid }).addTo(map);
-        noaaLayer = L.geoJSON(noaaFc, { pointToLayer: pointToNoaa, onEachFeature: popupNoaa }).addTo(map);
-
-        fitToBothLayers();
-
-        setStatus(`Loaded grid=${safeCount(gridFc)} | NOAA=${safeCount(noaaFc)}.`);
-      } catch (err) {
-        console.error("Load failed:", err);
-        const name = err?.name || "Error";
-        const msg = err?.message || String(err);
-        setStatus(`Error: ${name} — ${msg}`, true);
-      }
-    }
-
-    document.getElementById("loadBtn").addEventListener("click", loadBoth);
-
-    // Auto-load on open
-    loadBoth();
-  </script>
+    // Optional: auto-load once on open (comment out if you dislike it)
+    // loadAll();
+  });
+})();
+</script>
 </body>
 </html>
