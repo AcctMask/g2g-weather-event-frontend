@@ -3,3 +3,4 @@
 
 # never commit deps
 node_modules/
+zcta_fl.geojson
