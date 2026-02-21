@@ -1,2 +1,5 @@
 .DS_Store
 *.bak.*
+
+# never commit deps
+node_modules/
