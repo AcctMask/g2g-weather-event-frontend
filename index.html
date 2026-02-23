@@ -203,6 +203,7 @@
 
     <div class="actions">
       <button id="loadAll">Load ZIP + Grid + NOAA</button>
+      <button id="downloadZipCsv" class="btn">Download ZIP Target List (CSV)</button>
       <button id="clear" class="btn-secondary">Clear</button>
 
       <div class="statusbar">
@@ -538,6 +539,32 @@
         console.error(e);
         setStatus("Error loading layers (see console).", true);
       }
+$("downloadZipCsv").onclick = () => {
+  // Use the same backend base you already use for grid/noaa calls
+  const base = getBackendBaseUrl(); // must exist in your file
+  const counties = $("counties").value.trim() || "pasco,pinellas";
+  const gridDays = Number($("gridDays")?.value || 30);        // fallback ok
+  const noaaDays = Number($("noaaDays")?.value || 2);         // fallback ok
+
+  // For ZIP targeting we care about wind threshold. Use NOAA threshold primarily.
+  const minWind = Number($("noaaThreshold")?.value || 55);
+
+  const limit = Number($("limit")?.value || 200);
+
+  // Choose a “days” value that matches how you want to market.
+  // Most people will want the longer window, so use gridDays (30) as default.
+  const days = gridDays;
+
+  const url =
+    `${base}/zip-summary.csv` +
+    `?days=${encodeURIComponent(days)}` +
+    `&min_wind=${encodeURIComponent(minWind)}` +
+    `&counties=${encodeURIComponent(counties)}` +
+    `&limit=${encodeURIComponent(limit)}`;
+
+  // Trigger a browser download
+  window.location.href = url;
+};
     };
 
     $("clear").onclick = () => clearAll();
