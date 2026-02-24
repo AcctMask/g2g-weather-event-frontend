@@ -5,235 +5,286 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>G2G Weather Event Map (ZIP + Grid + NOAA)</title>
 
-  <!-- Leaflet CSS (must load before map renders) -->
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
-    :root{
-      --bg:#0b1020;
-      --panel:rgba(18,28,54,.92);
-      --panel2:rgba(12,18,36,.90);
-      --text:#e8eefc;
-      --muted:rgba(232,238,252,.70);
-      --border:rgba(232,238,252,.14);
-      --accent:#7aa2ff;
-      --danger:#ff7a7a;
-      --ok:#74d67a;
-      --shadow:0 10px 30px rgba(0,0,0,.35);
-      --radius:14px;
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(18, 28, 54, 0.92);
+      --panel2: rgba(12, 18, 36, 0.9);
+      --text: #e8eefc;
+      --muted: rgba(232, 238, 252, 0.7);
+      --border: rgba(232, 238, 252, 0.14);
+      --accent: #7aa2ff;
+      --danger: #ff7a7a;
+      --ok: #74d67a;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 14px;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
     }
 
-    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);}
-    #app{height:100%;display:grid;grid-template-rows:auto 1fr;}
-    #map{width:100%;height:100%;}
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+    #app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
 
-    .topbar{
-      padding:14px 14px 10px;
-      display:grid;
-      gap:10px;
-      background:linear-gradient(180deg, rgba(15,22,45,.95), rgba(10,14,28,.75));
-      border-bottom:1px solid var(--border);
-    }
-
-    .row{
-      display:grid;
-      grid-template-columns: 1.4fr 1.1fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr;
-      gap:10px;
-      align-items:end;
+    .topbar {
+      padding: 14px 14px 10px;
+      display: grid;
+      gap: 10px;
+      background: linear-gradient(180deg, rgba(15,22,45,.95), rgba(10,14,28,.75));
+      border-bottom: 1px solid var(--border);
     }
 
-    .row2{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-      align-items:center;
-      justify-content:space-between;
+    .row { display: grid; gap: 10px; }
+    .row.inputs {
+      grid-template-columns: 1.3fr 1.2fr .8fr .9fr .75fr .8fr .9fr .7fr;
+      align-items: stretch;
+    }
+    @media (max-width: 1200px) {
+      .row.inputs { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    }
+    @media (max-width: 800px) {
+      .row.inputs { grid-template-columns: 1fr 1fr; }
     }
 
-    .card{
-      background:var(--panel);
-      border:1px solid var(--border);
-      border-radius:var(--radius);
-      padding:10px 12px;
-      box-shadow:var(--shadow);
-      min-height:64px;
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px 10px 8px;
+      min-height: 64px;
+    }
+    .card label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      letter-spacing: .2px;
+    }
+    .card input, .card select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(232,238,252,.14);
+      background: rgba(7,10,18,.55);
+      color: var(--text);
+      outline: none;
+      font-size: 14px;
+    }
+    .card input::placeholder { color: rgba(232,238,252,.45); }
+
+    .row.controls {
+      grid-template-columns: auto auto auto 1fr;
+      align-items: center;
     }
 
-    .card label{
-      display:block;
-      font-size:12px;
-      color:var(--muted);
-      margin-bottom:6px;
+    .btn {
+      appearance: none;
+      border: 1px solid rgba(232,238,252,.18);
+      background: rgba(20,30,60,.65);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: transform .05s ease, background .15s ease;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .btn:hover { background: rgba(35,55,100,.70); }
+    .btn:active { transform: translateY(1px); }
+    .btn.primary { border-color: rgba(122,162,255,.45); background: rgba(40,70,150,.55); }
+    .btn.primary:hover { background: rgba(55,90,180,.60); }
+
+    .status {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--muted);
+      padding-left: 6px;
+    }
+    .status.ok { color: var(--ok); }
+    .status.bad { color: var(--danger); }
+
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .badge {
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(232,238,252,.16);
+      background: rgba(8,12,22,.55);
+      color: rgba(232,238,252,.85);
     }
 
-    input,select{
-      width:100%;
-      box-sizing:border-box;
-      padding:10px 10px;
-      border-radius:10px;
-      border:1px solid rgba(232,238,252,.18);
-      background:rgba(4,7,16,.65);
-      color:var(--text);
-      outline:none;
-      font-family:var(--mono);
-      font-size:13px;
+    /* Preview table (condensed) */
+    .previewWrap {
+      background: rgba(10,14,28,.55);
+      border: 1px solid rgba(232,238,252,.12);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .previewHead {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(232,238,252,.10);
+      color: rgba(232,238,252,.80);
+      font-size: 12px;
+    }
+    .previewHead .hint { color: rgba(232,238,252,.55); font-family: var(--mono); }
+    table.preview {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed; /* IMPORTANT: keeps narrow columns narrow */
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    table.preview th, table.preview td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(232,238,252,.08);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    table.preview th {
+      text-align: left;
+      color: rgba(232,238,252,.70);
+      background: rgba(8,12,22,.30);
+      font-weight: 700;
+    }
+    table.preview tr:last-child td { border-bottom: none; }
+
+    /* Column widths tuned so 1–5 digit columns stay tight (like your carrier_routes export) */
+    .col-zip { width: 72px; }
+    .col-county { width: 110px; }
+    .col-peak { width: 80px; }
+    .col-date { width: 110px; }
+    .col-noaa { width: 70px; }
+    .col-action { width: 110px; }
+    .col-angle { width: 210px; }
+    .col-routes { width: 120px; }
+    .col-addrs { width: 95px; }
+
+    #map {
+      height: 100%;
+      width: 100%;
     }
 
-    .btn{
-      appearance:none;
-      border:1px solid rgba(232,238,252,.18);
-      background:rgba(122,162,255,.18);
-      color:var(--text);
-      padding:10px 12px;
-      border-radius:12px;
-      cursor:pointer;
-      font-weight:700;
-      letter-spacing:.2px;
-      box-shadow:var(--shadow);
-      user-select:none;
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
+    /* Leaflet popup */
+    .leaflet-popup-content-wrapper {
+      border-radius: 14px;
+      box-shadow: 0 12px 32px rgba(0,0,0,.35);
     }
-    .btn:hover{ background:rgba(122,162,255,.26); }
-    .btn.secondary{ background:rgba(232,238,252,.08); }
-    .btn.danger{ background:rgba(255,122,122,.16); border-color:rgba(255,122,122,.28); }
-
-    .pills{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      align-items:center;
+    .popupTitle { font-weight: 800; margin-bottom: 6px; }
+    .popupGrid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 4px 10px;
+      font-family: var(--mono);
+      font-size: 12px;
     }
-    .pill{
-      background:rgba(232,238,252,.08);
-      border:1px solid rgba(232,238,252,.14);
-      border-radius:999px;
-      padding:6px 10px;
-      font-size:12px;
-      color:var(--muted);
-    }
-    .pill b{ color:var(--text); font-family:var(--mono); font-weight:800; }
-
-    .status{
-      font-size:12px;
-      color:var(--muted);
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:space-between;
-    }
-    .status .msg{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .status .err{ color:var(--danger); font-weight:800; }
-
-    .tableWrap{
-      background:var(--panel2);
-      border:1px solid var(--border);
-      border-radius:var(--radius);
-      padding:10px 12px;
-      overflow:auto;
-      max-height:260px;
-    }
-    table{
-      width:100%;
-      border-collapse:collapse;
-      font-size:12px;
-    }
-    th,td{
-      border-bottom:1px solid rgba(232,238,252,.10);
-      padding:8px 6px;
-      text-align:left;
-      vertical-align:top;
-      white-space:nowrap;
-    }
-    th{ color:var(--muted); font-weight:800; }
-    td{ color:var(--text); font-family:var(--mono); }
-
-    .hint{ color:var(--muted); font-size:12px; }
-    @media (max-width: 1100px){
-      .row{ grid-template-columns: 1fr 1fr 1fr 1fr; }
-    }
+    .popupGrid .k { color: rgba(30,60,150,.95); font-weight: 800; }
+    .popupGrid .v { color: rgba(15,18,26,.95); font-weight: 700; text-align: right; }
   </style>
 </head>
 
 <body>
   <div id="app">
     <div class="topbar">
-      <div class="row">
+      <div class="row inputs">
         <div class="card">
-          <label>Backend base URL</label>
-          <input id="backend" placeholder="https://..." />
-          <div class="hint" style="margin-top:6px">
-            Override with <b>?backend=</b> in the URL.
+          <label for="backend">Backend base URL</label>
+          <input id="backend" placeholder="https://…onrender.com" />
+          <div style="margin-top:6px;font-size:12px;color:var(--muted)">
+            Hosted default is set automatically. Override with <b>?backend=</b> in the URL.
           </div>
         </div>
 
         <div class="card">
-          <label>Counties (comma)</label>
-          <input id="counties" value="pasco,pinellas,hillsborough,manatee" />
+          <label for="counties">Counties (comma)</label>
+          <input id="counties" placeholder="pasco,pinellas,hillsborough,manatee" />
+          <div style="margin-top:6px;font-size:12px;color:var(--muted)">
+            Example: pasco,pinellas,hillsborough
+          </div>
         </div>
 
         <div class="card">
-          <label>Grid days</label>
-          <input id="gridDays" type="number" value="30" min="1" />
+          <label for="gridDays">Grid days</label>
+          <select id="gridDays">
+            <option>7</option><option>14</option><option>30</option><option>60</option>
+          </select>
         </div>
 
         <div class="card">
-          <label>Grid threshold (mph)</label>
-          <input id="gridThreshold" type="number" value="40" min="0" step="1" />
+          <label for="gridThreshold">Grid threshold (mph)</label>
+          <input id="gridThreshold" type="number" step="1" min="0" value="40" />
         </div>
 
         <div class="card">
-          <label>Grid sample</label>
-          <input id="gridSample" type="number" value="9" min="1" step="1" />
+          <label for="gridSample">Grid sample</label>
+          <input id="gridSample" type="number" step="1" min="1" max="9" value="9" />
         </div>
 
         <div class="card">
-          <label>NOAA days</label>
-          <input id="noaaDays" type="number" value="30" min="1" />
+          <label for="noaaDays">NOAA days</label>
+          <select id="noaaDays">
+            <option>2</option><option>7</option><option>14</option><option selected>30</option><option>60</option>
+          </select>
         </div>
 
         <div class="card">
-          <label>NOAA threshold (mph)</label>
-          <input id="noaaThreshold" type="number" value="55" min="0" step="1" />
+          <label for="noaaThreshold">NOAA threshold (mph)</label>
+          <input id="noaaThreshold" type="number" step="1" min="0" value="55" />
         </div>
 
         <div class="card">
-          <label>Limit</label>
-          <input id="limit" type="number" value="200" min="1" step="1" />
+          <label for="limit">Limit</label>
+          <input id="limit" type="number" step="1" min="1" value="200" />
         </div>
       </div>
 
-      <div class="row2">
-        <div class="pills">
-          <span class="pill">Backend: <b id="backendVer">?</b></span>
-          <span class="pill">ZIP polygons: <b id="zipCount">0</b></span>
-          <span class="pill">Grid events: <b id="gridCount">0</b></span>
-          <span class="pill">NOAA peaks: <b id="noaaCount">0</b></span>
-          <span class="pill">ZIP targets: <b id="zipTargetCount">0</b></span>
+      <div class="row controls">
+        <div class="badges">
+          <span class="badge" id="backendVer">Backend: ?</span>
+          <span class="badge" id="zipCount">ZIP polygons: 0</span>
+          <span class="badge" id="gridCount">Grid events: 0</span>
+          <span class="badge" id="noaaCount">NOAA peaks: 0</span>
+          <span class="badge" id="zipTargetCount">ZIP targets: 0</span>
         </div>
 
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn" id="loadAll">Load ZIP + Grid + NOAA</button>
-          <button class="btn secondary" id="clear">Clear</button>
-
+        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+          <button class="btn primary" id="loadAll">Load ZIP + Grid + NOAA</button>
           <button class="btn" id="dlZipSummary">Download ZIP Target List (CSV)</button>
           <button class="btn" id="dlCarrierRoutes">Download Carrier Routes (CSV)</button>
+          <button class="btn" id="clear">Clear</button>
         </div>
+
+        <div class="status ok" id="status">Ready.</div>
       </div>
 
-      <div class="status">
-        <div class="msg" id="statusMsg">Ready.</div>
-        <div class="msg">Tip: open the CSV in Numbers, filter by wind, sort desc.</div>
-      </div>
-
-      <div class="tableWrap" id="zipTargetsWrap" style="display:none;">
-        <div class="hint" style="margin-bottom:8px">
-          ZIP Target List preview (condensed). Use the download buttons for full CSV exports.
+      <div class="previewWrap" id="previewWrap" style="display:none">
+        <div class="previewHead">
+          <div>ZIP Target List preview (condensed). Use the download buttons for full CSV exports.</div>
+          <div class="hint">Tip: open the CSV in Numbers, filter by wind, sort desc.</div>
         </div>
-        <table>
+
+        <table class="preview" id="previewTable">
+          <colgroup>
+            <col class="col-zip">
+            <col class="col-county">
+            <col class="col-peak">
+            <col class="col-date">
+            <col class="col-noaa">
+            <col class="col-action">
+            <col class="col-angle">
+            <col class="col-routes">
+            <col class="col-addrs">
+          </colgroup>
           <thead>
             <tr>
               <th>ZIP</th>
@@ -247,7 +298,7 @@
               <th>Est. addrs</th>
             </tr>
           </thead>
-          <tbody id="zipTargetsBody"></tbody>
+          <tbody id="previewBody"></tbody>
         </table>
       </div>
     </div>
@@ -255,327 +306,454 @@
     <div id="map"></div>
   </div>
 
-  <!-- Leaflet JS (load AFTER map container exists) -->
+  <!-- Leaflet JS (NO defer; ensures L is defined before our app script runs) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
-    (function(){
-      const $ = (id) => document.getElementById(id);
+    // ===== Helpers =====
+    const $ = (id) => document.getElementById(id);
 
-      function setStatus(msg, isErr=false){
-        const el = $("statusMsg");
-        el.textContent = msg;
-        el.className = isErr ? "msg err" : "msg";
-      }
+    function setStatus(msg, isError=false) {
+      const el = $("status");
+      el.textContent = msg;
+      el.classList.toggle("bad", !!isError);
+      el.classList.toggle("ok", !isError);
+    }
 
-      function normalizeBase(u){
-        return (u || "").trim().replace(/\/+$/,"");
-      }
+    function parseQuery() {
+      const p = new URLSearchParams(location.search);
+      return {
+        backend: p.get("backend") || "",
+        counties: p.get("counties") || "",
+        gridDays: p.get("gridDays") || "",
+        gridThreshold: p.get("gridThreshold") || "",
+        gridSample: p.get("gridSample") || "",
+        noaaDays: p.get("noaaDays") || "",
+        noaaThreshold: p.get("noaaThreshold") || "",
+        limit: p.get("limit") || ""
+      };
+    }
 
-      function getParam(name){
-        try { return new URLSearchParams(window.location.search).get(name); }
-        catch(e){ return null; }
-      }
+    function normalizeBase(s) {
+      if (!s) return "";
+      s = String(s).trim();
+      if (s.endsWith("/")) s = s.slice(0, -1);
+      return s;
+    }
 
-      function guessHostedDefault(){
-        // If you're on the hosted Render frontend, use hosted Render backend.
-        // Otherwise local dev.
-        const host = (window.location.hostname || "").toLowerCase();
-        if (host.includes("onrender.com")){
-          return "https://g2g-weather-event-backend-1.onrender.com";
-        }
-        return "http://127.0.0.1:8002";
-      }
+    async function fetchJSON(url) {
+      const res = await fetch(url, { method: "GET" });
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+      return await res.json();
+    }
 
-      function safeNum(v){
-        if (v === null || v === undefined || v === "") return "";
-        const n = Number(v);
-        return Number.isFinite(n) ? n : String(v);
-      }
+    function downloadURL(url, filename) {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename || "";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
 
-      function safeText(v){
-        if (v === null || v === undefined) return "";
-        return String(v);
-      }
+    // ===== URL builders =====
+    function buildZipSummaryCsvUrl(base) {
+      const counties = $("counties").value.trim();
+      const days = parseInt($("noaaDays").value, 10) || 30;
+      const minWind = parseFloat($("noaaThreshold").value) || 55;
+      const limit = parseInt($("limit").value, 10) || 200;
 
-      async function fetchJson(url){
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok){
-          const txt = await res.text().catch(()=> "");
-          throw new Error(`HTTP ${res.status} ${res.statusText} — ${txt.slice(0,180)}`);
-        }
-        return await res.json();
-      }
+      const u = new URL(normalizeBase(base) + "/zip-summary.csv");
+      u.searchParams.set("days", String(days));
+      u.searchParams.set("min_wind", String(minWind));
+      u.searchParams.set("limit", String(limit));
+      if (counties) u.searchParams.set("counties", counties);
+      return u.toString();
+    }
 
-      function downloadUrl(url, filenameHint){
-        const a = document.createElement("a");
-        a.href = url;
-        if (filenameHint) a.download = filenameHint;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      }
+    function buildCarrierRoutesCsvUrl(base) {
+      const counties = $("counties").value.trim();
+      const days = parseInt($("noaaDays").value, 10) || 30;
+      const minWind = parseFloat($("noaaThreshold").value) || 55;
+      const limit = parseInt($("limit").value, 10) || 200;
 
-      // Map init
-      const map = L.map("map", { preferCanvas: true }).setView([28.05, -82.55], 9);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 18,
-        attribution: "&copy; OpenStreetMap contributors"
+      const u = new URL(normalizeBase(base) + "/carrier-routes.csv");
+      u.searchParams.set("days", String(days));
+      u.searchParams.set("min_wind", String(minWind));
+      u.searchParams.set("limit", String(limit));
+      if (counties) u.searchParams.set("counties", counties);
+      return u.toString();
+    }
+
+    function buildGridUrl(base) {
+      const counties = $("counties").value.trim();
+      const gridDays = parseInt($("gridDays").value, 10) || 30;
+      const gridThreshold = parseFloat($("gridThreshold").value) || 40;
+      const gridSample = parseInt($("gridSample").value, 10) || 9;
+      const limit = parseInt($("limit").value, 10) || 200;
+
+      const u = new URL(normalizeBase(base) + "/events.geojson");
+      if (counties) u.searchParams.set("counties", counties);
+      u.searchParams.set("days", String(gridDays));
+      u.searchParams.set("threshold_mph", String(gridThreshold));
+      u.searchParams.set("sample", String(gridSample));
+      u.searchParams.set("limit", String(limit));
+      return u.toString();
+    }
+
+    function buildNoaaUrl(base) {
+      const counties = $("counties").value.trim();
+      const noaaDays = parseInt($("noaaDays").value, 10) || 30;
+      const noaaThreshold = parseFloat($("noaaThreshold").value) || 55;
+      const limit = parseInt($("limit").value, 10) || 200;
+
+      const u = new URL(normalizeBase(base) + "/noaa.geojson");
+      if (counties) u.searchParams.set("counties", counties);
+      u.searchParams.set("days", String(noaaDays));
+      u.searchParams.set("threshold_mph", String(noaaThreshold));
+      u.searchParams.set("limit", String(limit));
+      return u.toString();
+    }
+
+    function buildZipSummaryJsonUrl(base) {
+      const counties = $("counties").value.trim();
+      const days = parseInt($("noaaDays").value, 10) || 30;
+      const minWind = parseFloat($("noaaThreshold").value) || 55;
+      const limit = parseInt($("limit").value, 10) || 200;
+
+      const u = new URL(normalizeBase(base) + "/zip-summary");
+      u.searchParams.set("days", String(days));
+      u.searchParams.set("min_wind", String(minWind));
+      u.searchParams.set("limit", String(limit));
+      if (counties) u.searchParams.set("counties", counties);
+      return u.toString();
+    }
+
+    // ===== Map / Layers =====
+    let map;
+    let baseLayer;
+    let zipLayer = null;
+    let gridLayer = null;
+    let noaaLayer = null;
+    let zipTargetLayer = null;
+
+    let zipMeta = {}; // zip -> {city, county, state}
+
+    function initMap() {
+      map = L.map("map", { zoomControl: true });
+      // Start in Tampa Bay-ish
+      map.setView([27.9506, -82.4572], 9);
+
+      baseLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
+    }
 
-      // Layers
-      let zipLayer = null;
-      let gridLayer = null;
-      let noaaLayer = null;
+    function popupKV(title, kvPairs) {
+      const rows = kvPairs.map(([k,v]) => `<div class="k">${k}</div><div class="v">${v ?? ""}</div>`).join("");
+      return `<div class="popupTitle">${title}</div><div class="popupGrid">${rows}</div>`;
+    }
 
-      let zipMeta = null; // fl_zip_meta.json dict
+    function pointToGrid(feature, latlng) {
+      return L.circleMarker(latlng, { radius: 6, weight: 1, opacity: 1, fillOpacity: 0.78 });
+    }
 
-      // ZIP polygon styling
-      function zipStyle(){
-        return { color: "#3b82f6", weight: 1, opacity: 0.9, fillOpacity: 0.06 };
+    function pointToNoaa(feature, latlng) {
+      return L.circleMarker(latlng, { radius: 5, weight: 1, opacity: 1, fillOpacity: 0.70 });
+    }
+
+    function popupGrid(feature, layer) {
+      const p = feature.properties || {};
+      layer.bindPopup(popupKV("Grid event", [
+        ["Wind (mph)", p.wind_mph ?? p.wind ?? ""],
+        ["Timestamp", p.timestamp ?? ""],
+        ["County", p.county ?? ""],
+        ["Source", p.source ?? ""],
+      ]));
+    }
+
+    function popupNoaa(feature, layer) {
+      const p = feature.properties || {};
+      layer.bindPopup(popupKV("NOAA peak", [
+        ["Wind (mph)", p.wind_mph ?? p.wind ?? ""],
+        ["Timestamp", p.timestamp ?? ""],
+        ["Station", p.station ?? p.station_name ?? ""],
+        ["ZIP", p.zip ?? ""],
+        ["County", p.county ?? ""],
+        ["City", p.city ?? ""],
+        ["Address", p.address ?? ""],
+      ]));
+    }
+
+    function styleZip(feature) {
+      return {
+        color: "#4f7cff",
+        weight: 1,
+        opacity: 0.9,
+        fillOpacity: 0.05
+      };
+    }
+
+    function popupZip(feature, layer) {
+      const p = feature.properties || {};
+      const zip = p.ZCTA5CE20 || p.ZCTA5 || p.zip || "";
+      const meta = zipMeta[zip] || {};
+      layer.bindPopup(popupKV("ZIP polygon", [
+        ["ZIP", zip],
+        ["City", meta.city || ""],
+        ["County", meta.county || ""],
+        ["State", meta.state || "FL"],
+      ]));
+    }
+
+    function pointToZipTarget(feature, latlng) {
+      return L.circleMarker(latlng, { radius: 7, weight: 2, opacity: 1, fillOpacity: 0.85 });
+    }
+
+    function popupZipTarget(feature, layer) {
+      const p = feature.properties || {};
+      layer.bindPopup(popupKV("ZIP target", [
+        ["ZIP", p.zip ?? ""],
+        ["Peak mph", p.peak_wind_mph ?? ""],
+        ["Date", p.event_start ?? ""],
+        ["County", p.county ?? ""],
+        ["Carrier routes", p.carrier_routes_count ?? ""],
+        ["Est. addrs", p.estimated_addresses ?? ""],
+      ]));
+    }
+
+    // IMPORTANT: Fix the "zoom way out" problem
+    // We DO NOT fit to the full ZIP layer (statewide polygons).
+    // We fit only to the "active data layers" (grid/noaa/zipTargets) if present.
+    function fitToActiveData() {
+      const layers = [gridLayer, noaaLayer, zipTargetLayer].filter(Boolean);
+      if (!layers.length) return;
+
+      let bounds = null;
+      for (const lyr of layers) {
+        try {
+          const b = lyr.getBounds && lyr.getBounds();
+          if (b && b.isValid()) bounds = bounds ? bounds.extend(b) : b;
+        } catch (e) {}
       }
 
-      function popupZip(feature, layer){
-        const p = feature.properties || {};
-        const zip = String(p.zip || p.ZCTA5CE20 || p.ZCTA5CE10 || p.GEOID10 || p.GEOID || "").trim();
-        const meta = (zipMeta && zipMeta[zip]) ? zipMeta[zip] : {};
-        const county = safeText(meta.county || p.county || "");
-        const city = safeText(meta.city || meta.place || p.city || "");
-        const html = `
-          <div class="popup">
-            <h3 style="margin:0 0 8px 0;">ZIP ${zip}</h3>
-            <table>
-              <tr><td>County</td><td>${county}</td></tr>
-              <tr><td>City</td><td>${city}</td></tr>
-              <tr><td>Layer</td><td>${safeText(p.layer || "")}</td></tr>
-            </table>
-          </div>
+      if (!bounds || !bounds.isValid()) return;
+
+      // Guardrail: don't zoom out to world; only fit if reasonable
+      // (If bounds span is enormous for any reason, we skip.)
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      const spanLat = Math.abs(ne.lat - sw.lat);
+      const spanLng = Math.abs(ne.lng - sw.lng);
+      if (spanLat > 15 || spanLng > 20) return;
+
+      map.fitBounds(bounds.pad(0.15));
+    }
+
+    // ===== Data loads =====
+    async function loadBackendVersion(base) {
+      try {
+        const j = await fetchJSON(normalizeBase(base) + "/version");
+        $("backendVer").textContent = `Backend: ${j.version || "?"}`;
+      } catch (e) {
+        $("backendVer").textContent = "Backend: ?";
+      }
+    }
+
+    async function loadZip(base) {
+      // ZIP polygons
+      const zctaUrl = normalizeBase(base) + "/zcta.geojson";
+      const metaUrl = normalizeBase(base) + "/zip-meta.json";
+
+      const [zcta, meta] = await Promise.all([fetchJSON(zctaUrl), fetchJSON(metaUrl)]);
+      zipMeta = meta || {};
+
+      if (zipLayer) map.removeLayer(zipLayer);
+      zipLayer = L.geoJSON(zcta, { style: styleZip, onEachFeature: popupZip }).addTo(map);
+
+      // Count polygons
+      const zipCount = (zcta && zcta.features && zcta.features.length) ? zcta.features.length : 0;
+      $("zipCount").textContent = `ZIP polygons: ${zipCount}`;
+    }
+
+    async function loadGrid(base) {
+      const gridUrl = buildGridUrl(base);
+      const gridFc = await fetchJSON(gridUrl);
+
+      if (gridLayer) map.removeLayer(gridLayer);
+      gridLayer = L.geoJSON(gridFc, { pointToLayer: pointToGrid, onEachFeature: popupGrid }).addTo(map);
+
+      const n = (gridFc && gridFc.features && gridFc.features.length) ? gridFc.features.length : 0;
+      $("gridCount").textContent = `Grid events: ${n}`;
+    }
+
+    async function loadNoaa(base) {
+      const noaaUrl = buildNoaaUrl(base);
+      const noaaFc = await fetchJSON(noaaUrl);
+
+      if (noaaLayer) map.removeLayer(noaaLayer);
+      noaaLayer = L.geoJSON(noaaFc, { pointToLayer: pointToNoaa, onEachFeature: popupNoaa }).addTo(map);
+
+      const n = (noaaFc && noaaFc.features && noaaFc.features.length) ? noaaFc.features.length : 0;
+      $("noaaCount").textContent = `NOAA peaks: ${n}`;
+    }
+
+    async function loadZipTargets(base) {
+      const url = buildZipSummaryJsonUrl(base);
+      const j = await fetchJSON(url);
+
+      const rows = (j && j.rows) ? j.rows : [];
+      $("zipTargetCount").textContent = `ZIP targets: ${rows.length}`;
+
+      // Preview table (condensed)
+      const body = $("previewBody");
+      body.innerHTML = "";
+      for (const r of rows.slice(0, 25)) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${r.zip ?? ""}</td>
+          <td>${r.county ?? ""}</td>
+          <td>${r.peak_wind_mph ?? ""}</td>
+          <td>${r.event_start ?? ""}</td>
+          <td>${r.noaa_station_count ?? ""}</td>
+          <td>${r.recommended_action ?? ""}</td>
+          <td>${r.sales_angle ?? ""}</td>
+          <td>${(r.carrier_routes && r.carrier_routes.length) ? r.carrier_routes.length : 0}</td>
+          <td>${r.estimated_addresses ?? ""}</td>
         `;
-        layer.bindPopup(html, { maxWidth: 420 });
+        body.appendChild(tr);
       }
+      $("previewWrap").style.display = rows.length ? "block" : "none";
 
-      // Grid points
-      function pointToGrid(feature, latlng){
-        return L.circleMarker(latlng, { radius: 5, weight: 1, opacity: 1, fillOpacity: 0.70 });
-      }
-      function popupGrid(feature, layer){
-        const p = feature.properties || {};
-        const html = `
-          <div class="popup">
-            <h3 style="margin:0 0 8px 0;">Grid event</h3>
-            <table>
-              <tr><td>Wind (mph)</td><td>${safeNum(p.wind_mph || p.wind || p.speed)}</td></tr>
-              <tr><td>Timestamp</td><td>${safeText(p.timestamp || p.time || "")}</td></tr>
-              <tr><td>County</td><td>${safeText(p.county || "")}</td></tr>
-              <tr><td>Layer</td><td>${safeText(p.layer || "")}</td></tr>
-            </table>
-          </div>
-        `;
-        layer.bindPopup(html, { maxWidth: 420 });
-      }
-
-      // NOAA points
-      function pointToNoaa(feature, latlng){
-        return L.circleMarker(latlng, { radius: 6, weight: 1, opacity: 1, fillOpacity: 0.78 });
-      }
-      function popupNoaa(feature, layer){
-        const p = feature.properties || {};
-        const html = `
-          <div class="popup">
-            <h3 style="margin:0 0 8px 0;">NOAA peak</h3>
-            <table>
-              <tr><td>Wind (mph)</td><td>${safeNum(p.wind_mph || p.wind || p.peak_wind_mph)}</td></tr>
-              <tr><td>Timestamp</td><td>${safeText(p.timestamp || p.time || "")}</td></tr>
-              <tr><td>Station</td><td>${safeText(p.station_name || p.station || "")}</td></tr>
-              <tr><td>ZIP</td><td>${safeText(p.zip || "")}</td></tr>
-              <tr><td>County</td><td>${safeText(p.county || "")}</td></tr>
-              <tr><td>City</td><td>${safeText(p.city || "")}</td></tr>
-              <tr><td>Address</td><td>${safeText(p.address || "")}</td></tr>
-              <tr><td>Layer</td><td>${safeText(p.layer || "")}</td></tr>
-            </table>
-          </div>
-        `;
-        layer.bindPopup(html, { maxWidth: 520 });
-      }
-
-      function clearLayers(){
-        if (gridLayer) { map.removeLayer(gridLayer); gridLayer = null; }
-        if (noaaLayer) { map.removeLayer(noaaLayer); noaaLayer = null; }
-        if (zipLayer) { map.removeLayer(zipLayer); zipLayer = null; }
-        $("gridCount").textContent = "0";
-        $("noaaCount").textContent = "0";
-        $("zipCount").textContent = "0";
-        $("zipTargetCount").textContent = "0";
-        $("zipTargetsWrap").style.display = "none";
-        $("zipTargetsBody").innerHTML = "";
-        setStatus("Cleared.");
-      }
-
-      function buildGridUrl(base){
-        const counties = encodeURIComponent($("counties").value.trim());
-        const days = encodeURIComponent(String($("gridDays").value));
-        const thr = encodeURIComponent(String($("gridThreshold").value));
-        const sample = encodeURIComponent(String($("gridSample").value));
-        const limit = encodeURIComponent(String($("limit").value));
-        return `${base}/events.geojson?counties=${counties}&days=${days}&threshold_mph=${thr}&sample=${sample}&limit=${limit}&v=${Date.now()}`;
-      }
-
-      function buildNoaaUrl(base){
-        const counties = encodeURIComponent($("counties").value.trim());
-        const days = encodeURIComponent(String($("noaaDays").value));
-        const thr = encodeURIComponent(String($("noaaThreshold").value));
-        const limit = encodeURIComponent(String($("limit").value));
-        return `${base}/noaa.geojson?counties=${counties}&days=${days}&threshold_mph=${thr}&limit=${limit}&v=${Date.now()}`;
-      }
-
-      function buildZipSummaryCsvUrl(base){
-        const counties = encodeURIComponent($("counties").value.trim());
-        const days = encodeURIComponent(String($("noaaDays").value));
-        const minWind = encodeURIComponent(String($("noaaThreshold").value));
-        const limit = encodeURIComponent(String($("limit").value));
-        return `${base}/zip-summary.csv?days=${days}&min_wind=${minWind}&counties=${counties}&limit=${limit}`;
-      }
-
-      function buildCarrierRoutesCsvUrl(base){
-        const counties = encodeURIComponent($("counties").value.trim());
-        const days = encodeURIComponent(String($("noaaDays").value));
-        const minWind = encodeURIComponent(String($("noaaThreshold").value));
-        const limit = encodeURIComponent(String($("limit").value));
-        return `${base}/carrier-routes.csv?days=${days}&min_wind=${minWind}&counties=${counties}&limit=${limit}`;
-      }
-
-      function dateOnly(s){
-        if (!s) return "";
-        return String(s).slice(0,10);
-      }
-
-      function renderZipTargets(rows){
-        const body = $("zipTargetsBody");
-        body.innerHTML = "";
-        for (const r of (rows || [])){
-          const tr = document.createElement("tr");
-          const carrier = Array.isArray(r.carrier_routes) ? r.carrier_routes.length : (r.carrier_routes ? 1 : 0);
-          tr.innerHTML = `
-            <td>${safeText(r.zip || "")}</td>
-            <td>${safeText(r.county || "")}</td>
-            <td>${safeNum(r.peak_wind_mph || "")}</td>
-            <td>${dateOnly(r.event_start || r.event_end || "")}</td>
-            <td>${safeNum(r.noaa_station_count || "")}</td>
-            <td>${safeText(r.recommended_action || "")}</td>
-            <td>${safeText(r.sales_angle || "")}</td>
-            <td>${safeNum(carrier)}</td>
-            <td>${safeNum(r.estimated_addresses || "")}</td>
-          `;
-          body.appendChild(tr);
+      // Optional: show a small marker per ZIP target (centroid from zip polygons if available)
+      // We’ll only add targets if we can find a polygon centroid for that ZIP.
+      // This prevents weird global bounds.
+      const features = [];
+      if (zipLayer && zipLayer.getLayers) {
+        const layers = zipLayer.getLayers();
+        const zipToLayer = new Map();
+        for (const lyr of layers) {
+          const fp = lyr.feature && lyr.feature.properties ? lyr.feature.properties : {};
+          const z = fp.ZCTA5CE20 || fp.ZCTA5 || fp.zip || "";
+          if (z) zipToLayer.set(String(z), lyr);
         }
-        $("zipTargetCount").textContent = String((rows || []).length);
-        $("zipTargetsWrap").style.display = (rows && rows.length) ? "block" : "none";
-      }
 
-      async function loadVersion(base){
-        try{
-          const ver = await fetchJson(`${base}/version?v=${Date.now()}`);
-          $("backendVer").textContent = (ver && ver.version) ? ver.version : "?";
-        }catch(e){
-          $("backendVer").textContent = "?";
+        for (const r of rows) {
+          const z = String(r.zip || "");
+          const lyr = zipToLayer.get(z);
+          if (!lyr || !lyr.getBounds) continue;
+
+          const c = lyr.getBounds().getCenter();
+          features.push({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [c.lng, c.lat] },
+            properties: {
+              zip: r.zip,
+              county: r.county,
+              peak_wind_mph: r.peak_wind_mph,
+              event_start: r.event_start,
+              carrier_routes_count: (r.carrier_routes && r.carrier_routes.length) ? r.carrier_routes.length : 0,
+              estimated_addresses: r.estimated_addresses
+            }
+          });
         }
       }
 
-      async function loadZip(base){
-        setStatus("Loading ZIP outlines + ZIP meta…");
-        const [zctaFc, meta] = await Promise.all([
-          fetchJson(`${base}/zcta.geojson?v=${Date.now()}`),
-          fetchJson(`${base}/zip-meta.json?v=${Date.now()}`)
-        ]);
-        zipMeta = meta;
+      if (zipTargetLayer) map.removeLayer(zipTargetLayer);
+      zipTargetLayer = null;
 
-        if (zipLayer) map.removeLayer(zipLayer);
-        zipLayer = L.geoJSON(zctaFc, { style: zipStyle, onEachFeature: popupZip }).addTo(map);
-        $("zipCount").textContent = String((zctaFc.features || []).length);
-        return zipLayer;
+      if (features.length) {
+        zipTargetLayer = L.geoJSON({ type: "FeatureCollection", features }, {
+          pointToLayer: pointToZipTarget,
+          onEachFeature: popupZipTarget
+        }).addTo(map);
+      }
+    }
+
+    // ===== Main load =====
+    async function loadAll() {
+      const base = normalizeBase($("backend").value);
+      if (!base) {
+        setStatus("Backend URL is empty.", true);
+        return;
       }
 
-      async function loadGrid(base){
-        setStatus("Loading Grid…");
-        const gridFc = await fetchJson(buildGridUrl(base));
-        if (gridLayer) map.removeLayer(gridLayer);
-        gridLayer = L.geoJSON(gridFc, { pointToLayer: pointToGrid, onEachFeature: popupGrid }).addTo(map);
-        $("gridCount").textContent = String((gridFc.features || []).length);
+      setStatus("Loading…");
+      await loadBackendVersion(base);
+
+      try {
+        // Load ZIP polygons first (for centroids / popups), but do NOT fit to them.
+        await loadZip(base);
+
+        // Load “active” layers
+        await loadGrid(base);
+        await loadNoaa(base);
+
+        // Load ZIP targets (summary + preview + target markers)
+        await loadZipTargets(base);
+
+        // Fit map to active data (grid/noaa/targets), NOT statewide ZIP polygons
+        fitToActiveData();
+
+        setStatus("Loaded ✓ ZIP + Grid + NOAA + ZIP targets");
+      } catch (e) {
+        console.error(e);
+        setStatus("Error loading layers (see console).", true);
       }
+    }
 
-      async function loadNoaa(base){
-        setStatus("Loading NOAA…");
-        const noaaFc = await fetchJson(buildNoaaUrl(base));
-        if (noaaLayer) map.removeLayer(noaaLayer);
-        noaaLayer = L.geoJSON(noaaFc, { pointToLayer: pointToNoaa, onEachFeature: popupNoaa }).addTo(map);
-        $("noaaCount").textContent = String((noaaFc.features || []).length);
-      }
+    function clearAll() {
+      [zipLayer, gridLayer, noaaLayer, zipTargetLayer].forEach(l => l && map.removeLayer(l));
+      zipLayer = gridLayer = noaaLayer = zipTargetLayer = null;
+      $("zipCount").textContent = "ZIP polygons: 0";
+      $("gridCount").textContent = "Grid events: 0";
+      $("noaaCount").textContent = "NOAA peaks: 0";
+      $("zipTargetCount").textContent = "ZIP targets: 0";
+      $("previewWrap").style.display = "none";
+      setStatus("Cleared.");
+    }
 
-      async function loadZipTargets(base){
-        // Uses your new backend endpoint (JSON)
-        const days = encodeURIComponent(String($("noaaDays").value));
-        const minWind = encodeURIComponent(String($("noaaThreshold").value));
-        const counties = encodeURIComponent($("counties").value.trim());
-        const limit = encodeURIComponent(String($("limit").value));
-        const url = `${base}/zip-summary?days=${days}&min_wind=${minWind}&counties=${counties}&limit=${limit}&v=${Date.now()}`;
-        const data = await fetchJson(url);
-        renderZipTargets(data && data.rows ? data.rows : []);
-      }
+    // ===== Boot =====
+    (function boot() {
+      // Decide a default backend
+      const q = parseQuery();
+      const hostedDefault = "https://g2g-weather-event-backend-1.onrender.com";
+      const localDefault = "http://127.0.0.1:8000";
+      const isHosted = location.hostname.includes("onrender.com");
 
-      async function loadAll(){
-        const base = normalizeBase($("backend").value);
-        if (!base){
-          setStatus("Backend URL is empty.", true);
-          return;
-        }
+      $("backend").value = normalizeBase(q.backend || (isHosted ? hostedDefault : localDefault));
+      $("counties").value = q.counties || "pasco,pinellas,hillsborough,manatee";
+      if (q.gridDays) $("gridDays").value = q.gridDays;
+      if (q.gridThreshold) $("gridThreshold").value = q.gridThreshold;
+      if (q.gridSample) $("gridSample").value = q.gridSample;
+      if (q.noaaDays) $("noaaDays").value = q.noaaDays;
+      if (q.noaaThreshold) $("noaaThreshold").value = q.noaaThreshold;
+      if (q.limit) $("limit").value = q.limit;
 
-        clearLayers();
-        setStatus("Loading…");
+      initMap();
+      loadBackendVersion($("backend").value);
 
-        try{
-          await loadVersion(base);
-          const zl = await loadZip(base);
-          await Promise.all([loadGrid(base), loadNoaa(base)]);
-          await loadZipTargets(base);
-
-          try{
-            if (zl && zl.getBounds) map.fitBounds(zl.getBounds().pad(0.08));
-          }catch(e){}
-
-          setStatus("Loaded ✓ ZIP + Grid + NOAA + ZIP targets");
-        }catch(e){
-          console.error(e);
-          setStatus(`Error: ${e && e.message ? e.message : String(e)}`, true);
-        }
-      }
-
-      // Defaults + query param backend override
-      const hostedDefault = guessHostedDefault();
-      const qpBackend = getParam("backend");
-      $("backend").value = normalizeBase(qpBackend || hostedDefault);
-      loadVersion($("backend").value).catch(()=>{});
-
-      // Buttons
-      $("loadAll").onclick = loadAll;
-      $("clear").onclick = clearLayers;
+      $("loadAll").onclick = () => loadAll();
 
       $("dlZipSummary").onclick = () => {
         const base = normalizeBase($("backend").value);
         if (!base) return setStatus("Backend URL is empty.", true);
         setStatus("Downloading ZIP Target List (CSV)…");
-        downloadUrl(buildZipSummaryCsvUrl(base), "zip_summary.csv");
+        downloadURL(buildZipSummaryCsvUrl(base), "zip_summary.csv");
       };
 
       $("dlCarrierRoutes").onclick = () => {
         const base = normalizeBase($("backend").value);
         if (!base) return setStatus("Backend URL is empty.", true);
         setStatus("Downloading Carrier Routes (CSV)…");
-        downloadUrl(buildCarrierRoutesCsvUrl(base), "carrier_routes.csv");
+        downloadURL(buildCarrierRoutesCsvUrl(base), "carrier_routes.csv");
       };
+
+      $("clear").onclick = () => clearAll();
 
       setStatus("Ready.");
     })();
   </script>
 </body>
 </html>
-[D[D
