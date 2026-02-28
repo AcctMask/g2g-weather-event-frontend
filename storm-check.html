@@ -1,349 +1,294 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Storm Check — NOAA Wind Verification</title>
-  <style>
-    :root{
-      --bg:#071226;
-      --panel:rgba(255,255,255,.06);
-      --panel2:rgba(255,255,255,.08);
-      --text:#eaf2ff;
-      --muted:rgba(234,242,255,.72);
-      --border:rgba(255,255,255,.12);
-      --ok:#43d17a;
-      --warn:#f5c84c;
-      --risk:#ff6b6b;
-      --btn:#2c6bed;
-    }
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      background: radial-gradient(1200px 600px at 30% 0%, rgba(44,107,237,.35), transparent 60%),
-                  radial-gradient(900px 500px at 80% 10%, rgba(67,209,122,.2), transparent 55%),
-                  var(--bg);
-      color:var(--text);
-    }
-    .wrap{ max-width:980px; margin:0 auto; padding:26px 18px 60px; }
-    .hero{
-      display:flex; gap:18px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;
-      padding:18px; border:1px solid var(--border); background:var(--panel); border-radius:14px;
-      backdrop-filter: blur(8px);
-    }
-    .hero h1{ margin:0 0 6px; font-size:22px; letter-spacing:.2px; }
-    .hero p{ margin:0; color:var(--muted); line-height:1.35; }
-    .badge{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:8px 10px; border:1px solid var(--border); background:var(--panel2); border-radius:999px;
-      font-size:12px; color:var(--muted);
-    }
-    .grid{ display:grid; grid-template-columns: 1.1fr .9fr; gap:14px; margin-top:14px; }
-    @media (max-width: 860px){ .grid{ grid-template-columns: 1fr; } }
+<meta charset="utf-8"/>
+<title>Storm Risk Check</title>
 
-    .card{
-      padding:16px; border:1px solid var(--border); background:var(--panel); border-radius:14px;
-      backdrop-filter: blur(8px);
-    }
-    label{ display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; }
-    input{
-      width:100%; padding:12px 12px; border-radius:12px; border:1px solid var(--border);
-      background: rgba(0,0,0,.20); color:var(--text); outline:none;
-    }
-    input::placeholder{ color: rgba(234,242,255,.40); }
-    .row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-    @media (max-width: 520px){ .row{ grid-template-columns:1fr; } }
+<style>
 
-    .actions{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
-    button{
-      border:0; border-radius:999px; padding:11px 14px; cursor:pointer; font-weight:600;
-      color:white; background: var(--btn);
-    }
-    button.secondary{ background: rgba(255,255,255,.10); border:1px solid var(--border); color: var(--text); }
-    button:disabled{ opacity:.6; cursor:not-allowed; }
+body{
+font-family:system-ui;
+background:#0c1220;
+color:#fff;
+padding:40px;
+}
 
-    .status{ margin-top:10px; font-size:13px; color:var(--muted); }
-    .status.good{ color: var(--ok); }
-    .status.bad{ color: var(--risk); }
+.container{
+max-width:900px;
+margin:auto;
+background:#121b2f;
+padding:30px;
+border-radius:12px;
+}
 
-    .result{
-      display:none;
-      margin-top:10px;
-      padding:14px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.20);
-      border-radius:14px;
-    }
-    .kv{
-      display:grid;
-      grid-template-columns: 140px 1fr;
-      gap:10px;
-      padding:8px 0;
-      border-bottom:1px solid rgba(255,255,255,.08);
-      align-items:center;
-    }
-    .kv:last-child{ border-bottom:0; }
-    .k{ color: var(--muted); font-size:12px; }
-    .v{ font-size:14px; }
-    .riskTag{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700;
-      border:1px solid var(--border);
-    }
-    .riskLow{ background: rgba(67,209,122,.14); color: var(--ok); }
-    .riskMed{ background: rgba(245,200,76,.16); color: var(--warn); }
-    .riskHigh{ background: rgba(255,107,107,.16); color: var(--risk); }
+h1{
+margin-top:0;
+}
 
-    .ctaBox{
-      margin-top:12px;
-      padding:14px;
-      border:1px solid rgba(44,107,237,.35);
-      background: rgba(44,107,237,.10);
-      border-radius:14px;
-    }
-    a.cta{
-      display:inline-flex; align-items:center; justify-content:center;
-      text-decoration:none;
-      margin-top:10px;
-      padding:11px 14px;
-      border-radius:999px;
-      background: var(--btn);
-      color:white;
-      font-weight:800;
-    }
-    .tiny{ font-size:12px; color: var(--muted); margin-top:10px; line-height:1.35; }
-    code{ color: rgba(234,242,255,.88); }
-  </style>
+label{
+display:block;
+margin-top:15px;
+font-size:14px;
+}
+
+input{
+width:100%;
+padding:10px;
+border-radius:6px;
+border:none;
+margin-top:6px;
+}
+
+textarea{
+width:100%;
+padding:10px;
+border-radius:6px;
+border:none;
+margin-top:6px;
+}
+
+button{
+margin-top:20px;
+padding:12px 20px;
+border-radius:8px;
+border:none;
+background:#3b82f6;
+color:white;
+font-weight:600;
+cursor:pointer;
+}
+
+button.secondary{
+background:#374151;
+margin-left:10px;
+}
+
+.result{
+margin-top:30px;
+padding:20px;
+background:#0f172a;
+border-radius:10px;
+}
+
+.bad{
+color:#ef4444;
+}
+
+.good{
+color:#22c55e;
+}
+
+.unknown{
+color:#facc15;
+}
+
+.cta{
+margin-top:20px;
+}
+
+.cta a{
+display:inline-block;
+padding:12px 20px;
+background:#3b82f6;
+color:white;
+border-radius:8px;
+text-decoration:none;
+font-weight:600;
+}
+
+.small{
+font-size:12px;
+color:#9ca3af;
+margin-top:15px;
+}
+
+</style>
 </head>
+
 <body>
-  <div class="wrap">
-    <div class="hero">
-      <div>
-        <h1>Storm Check — NOAA Wind Verification</h1>
-        <p>Enter your ZIP to see if NOAA stations recorded high winds recently in your area. Wind damage is often not visible from the ground.</p>
-      </div>
-      <div class="badge">
-        <span>Data Source:</span>
-        <strong>NOAA</strong>
-        <span id="backendTag" style="margin-left:8px; opacity:.85;"></span>
-      </div>
-    </div>
 
-    <div class="grid">
-      <div class="card">
-        <div class="row">
-          <div>
-            <label for="zip">ZIP Code</label>
-            <input id="zip" inputmode="numeric" maxlength="5" placeholder="e.g., 33781" />
-          </div>
-          <div>
-            <label for="email">Email (optional)</label>
-            <input id="email" type="email" placeholder="you@email.com" />
-          </div>
-        </div>
+<div class="container">
 
-        <div class="row">
-          <div>
-            <label for="name">Name (optional)</label>
-            <input id="name" placeholder="Your name" />
-          </div>
-          <div>
-            <label for="phone">Phone (optional)</label>
-            <input id="phone" placeholder="(xxx) xxx-xxxx" />
-          </div>
-        </div>
+<h1>Storm Damage Check</h1>
 
-        <label for="note">Notes (optional)</label>
-        <input id="note" placeholder="Any concerns? (leaks, missing shingles, etc.)" />
+<p>
+Enter your information to see if NOAA recorded damaging winds in your area
+during the <b>last 30 days</b>.
+</p>
 
-        <div class="actions">
-          <button id="run">Check Storm Risk</button>
-          <button id="clear" class="secondary">Clear</button>
-        </div>
+<label>ZIP Code</label>
+<input id="zip" placeholder="33763" required>
 
-        <div id="status" class="status">Ready.</div>
+<label>Name</label>
+<input id="name" placeholder="Your name" required>
 
-        <div id="result" class="result">
-          <div class="kv"><div class="k">ZIP</div><div class="v" id="rZip"></div></div>
-          <div class="kv"><div class="k">Peak wind</div><div class="v" id="rWind"></div></div>
-          <div class="kv"><div class="k">Storm date</div><div class="v" id="rDate"></div></div>
-          <div class="kv"><div class="k">Risk level</div><div class="v" id="rRisk"></div></div>
-          <div class="kv"><div class="k">Why this matters</div><div class="v" id="rWhy"></div></div>
+<label>Email</label>
+<input id="email" type="email" placeholder="you@email.com" required>
 
-          <div class="ctaBox">
-            <div style="font-weight:800; margin-bottom:4px;">Next step</div>
-            <div style="color:var(--muted); line-height:1.35;">
-              Get a fast, ballpark roof replacement estimate. It takes about 60 seconds.
-            </div>
-            <a class="cta" id="estimateBtn" href="https://www.g2groofing.com" target="_blank" rel="noopener">Get an Instant Roof Estimate →</a>
-            <div class="tiny">
-              This is an automated storm check based on nearby NOAA station wind readings and may not capture every micro-event.
-              If you have concerns, schedule an inspection.
-            </div>
-          </div>
-        </div>
+<label>Phone (optional)</label>
+<input id="phone" placeholder="7275551234">
 
-        <div class="tiny">
-          Tip: you can share links like <code>?zip=33781</code> in your social posts.
-        </div>
-      </div>
+<label>Notes (optional)</label>
+<textarea id="notes" placeholder="Leaks, missing shingles, etc"></textarea>
 
-      <div class="card">
-        <div style="font-weight:800; margin-bottom:6px;">For contractors (private)</div>
-        <div style="color:var(--muted); line-height:1.45;">
-          This page is intended for homeowners. Your full “contractor targeting map” should be kept separate/protected
-          (recommended: separate deployment or basic auth) so the public link cannot access the pro interface.
-        </div>
-        <div class="tiny" style="margin-top:12px;">
-          Backend used by this page: <code id="backendUrl"></code>
-        </div>
-      </div>
-    </div>
-  </div>
+<button onclick="run()">Check Storm Risk</button>
+<button class="secondary" onclick="clearForm()">Clear</button>
 
-  <script>
-    // Default backend (can be overridden with ?backend=)
-    const DEFAULT_BACKEND = "https://g2g-weather-event-backend-1.onrender.com";
+<div id="status"></div>
 
-    function qs(name){
-      return new URLSearchParams(location.search).get(name);
-    }
+<div id="result" class="result" style="display:none">
 
-    function normalizeZip(z){
-      const m = String(z||"").match(/(\d{5})/);
-      return m ? m[1] : "";
-    }
+<h3>Your Storm Report</h3>
 
-    function setStatus(msg, kind){
-      const el = document.getElementById("status");
-      el.textContent = msg;
-      el.className = "status" + (kind ? (" " + kind) : "");
-    }
+<p><b>ZIP</b>: <span id="rZip"></span></p>
 
-    function riskFromWind(mph){
-      if (mph >= 75) return { label:"HIGH", cls:"riskHigh", why:"Winds at this level can cause significant shingle loss and uplift-related failures." };
-      if (mph >= 55) return { label:"MEDIUM", cls:"riskMed", why:"Winds above ~55 mph can damage shingles, flashing, ridge caps, and seal strips." };
-      if (mph > 0)   return { label:"LOW", cls:"riskLow", why:"Some risk exists. Wind damage may still occur depending on roof age/condition." };
-      return { label:"UNKNOWN", cls:"riskLow", why:"No storm reading found in the current window for this ZIP." };
-    }
+<p><b>Storm window checked</b>: Last 30 Days</p>
 
-    async function fetchZipSummary(backend, days, min_wind, counties, limit){
-      const u = new URL(backend.replace(/\/+$/,'') + "/zip-summary");
-      u.searchParams.set("days", String(days));
-      u.searchParams.set("min_wind", String(min_wind));
-      u.searchParams.set("limit", String(limit));
-      if (counties) u.searchParams.set("counties", counties);
-      const res = await fetch(u.toString(), { headers: { "accept": "application/json" } });
-      if (!res.ok) throw new Error("zip-summary failed: " + res.status);
-      return res.json();
-    }
+<p><b>Peak wind</b>: <span id="rWind"></span></p>
 
-    // Later: you can wire this to Supabase webhook (kept off for now unless you set ?hook=)
-    async function postLeadIfConfigured(payload){
-      const hook = qs("hook");
-      if (!hook) return;
-      try{
-        await fetch(hook, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-      }catch(e){
-        console.warn("Lead webhook failed:", e);
-      }
-    }
+<p><b>Storm date</b>: <span id="rDate"></span></p>
 
-    const backend = (qs("backend") || DEFAULT_BACKEND).trim();
-    document.getElementById("backendUrl").textContent = backend;
-    document.getElementById("backendTag").textContent = "Backend: " + backend.replace(/^https?:\/\//,'').split('/')[0];
+<p><b>Risk level</b>: <span id="rRisk"></span></p>
 
-    // Prefill from URL
-    const zipPrefill = normalizeZip(qs("zip"));
-    if (zipPrefill) document.getElementById("zip").value = zipPrefill;
+<p id="why"></p>
 
-    const days = Number(qs("days") || 30);
-    const min_wind = Number(qs("min_wind") || 55);
-    const counties = (qs("counties") || "").trim(); // optional
-    const limit = Number(qs("limit") || 200);
+<div class="cta">
 
-    async function run(){
-      const zip = normalizeZip(document.getElementById("zip").value);
-      if (!zip){
-        setStatus("Please enter a valid 5-digit ZIP.", "bad");
-        return;
-      }
+<h3>Next step</h3>
 
-      const name = (document.getElementById("name").value || "").trim();
-      const email = (document.getElementById("email").value || "").trim();
-      const phone = (document.getElementById("phone").value || "").trim();
-      const note = (document.getElementById("note").value || "").trim();
+<p>
+Get a fast, ballpark roof replacement estimate.
+It takes about 60 seconds.
+</p>
 
-      setStatus("Checking NOAA wind readings for ZIP " + zip + "…");
-      document.getElementById("result").style.display = "none";
+<a href="https://www.g2groofing.com" target="_blank">
+Get an Instant Roof Estimate →
+</a>
 
-      try{
-        const data = await fetchZipSummary(backend, days, min_wind, counties, limit);
-        const rows = (data && data.rows) ? data.rows : [];
-        const row = rows.find(r => String(r.zip) === zip) || null;
+</div>
 
-        let mph = 0;
-        let date = "";
-        if (row){
-          mph = Number(row.peak_wind_mph || 0);
-          date = row.event_start || row.event_end || "";
-        }
+<p class="small">
+This automated storm check uses NOAA station wind data and may not capture
+every micro-event. If you suspect damage, schedule a professional inspection.
+</p>
 
-        const risk = riskFromWind(mph);
+</div>
 
-        document.getElementById("rZip").textContent = zip;
-        document.getElementById("rWind").textContent = mph ? (mph.toFixed(0) + " mph") : "No reading found (in window)";
-        document.getElementById("rDate").textContent = date || "—";
+</div>
 
-        const riskEl = document.getElementById("rRisk");
-        riskEl.innerHTML = "";
-        const tag = document.createElement("span");
-        tag.className = "riskTag " + risk.cls;
-        tag.textContent = risk.label;
-        riskEl.appendChild(tag);
+<script>
 
-        document.getElementById("rWhy").textContent = risk.why;
+const backend="https://g2g-weather-event-backend-1.onrender.com"
 
-        document.getElementById("result").style.display = "block";
+function setStatus(msg,type){
+const el=document.getElementById("status")
+el.innerHTML=msg
+el.className=type||""
+}
 
-        // Lead payload (stored later via Supabase webhook when you’re ready)
-        await postLeadIfConfigured({
-          source: "storm-check",
-          created_at: new Date().toISOString(),
-          zip,
-          days,
-          min_wind,
-          counties: counties || null,
-          match: row || null,
-          risk_level: risk.label,
-          name: name || null,
-          email: email || null,
-          phone: phone || null,
-          note: note || null,
-          user_agent: navigator.userAgent
-        });
+function clearForm(){
+document.getElementById("zip").value=""
+document.getElementById("name").value=""
+document.getElementById("email").value=""
+document.getElementById("phone").value=""
+document.getElementById("notes").value=""
+document.getElementById("result").style.display="none"
+setStatus("")
+}
 
-        setStatus("Done. Scroll down to see your storm check.", "good");
-      }catch(e){
-        console.error(e);
-        setStatus("Could not load storm data right now. Please try again in a minute.", "bad");
-      }
-    }
+async function run(){
 
-    document.getElementById("run").addEventListener("click", run);
-    document.getElementById("clear").addEventListener("click", () => {
-      ["zip","name","email","phone","note"].forEach(id => document.getElementById(id).value = "");
-      document.getElementById("result").style.display = "none";
-      setStatus("Ready.");
-    });
+const zip=document.getElementById("zip").value.trim()
+const name=document.getElementById("name").value.trim()
+const email=document.getElementById("email").value.trim()
+const phone=document.getElementById("phone").value.trim()
+const notes=document.getElementById("notes").value.trim()
 
-    // auto-run if zip provided in URL
-    if (zipPrefill) setTimeout(run, 250);
-  </script>
+if(!zip){
+setStatus("Please enter your ZIP code.","bad")
+return
+}
+
+if(!name || !email){
+setStatus("Please enter your name and email to view your storm report.","bad")
+return
+}
+
+setStatus("Checking NOAA storm data...")
+
+try{
+
+const r=await fetch(
+backend+
+"/zip-summary?days=30&min_wind=55&zip="+zip
+)
+
+const data=await r.json()
+
+let wind=null
+let date=null
+
+if(data.rows && data.rows.length>0){
+wind=data.rows[0].peak_wind_mph
+date=data.rows[0].event_start
+}
+
+document.getElementById("result").style.display="block"
+document.getElementById("rZip").textContent=zip
+
+if(!wind){
+
+document.getElementById("rWind").textContent="No reading found"
+document.getElementById("rDate").textContent="No recorded winds above threshold in the last 30 days"
+document.getElementById("rRisk").textContent="UNKNOWN"
+document.getElementById("rRisk").className="unknown"
+document.getElementById("why").textContent=
+"No storm reading found in the current window for this ZIP."
+
+}else{
+
+document.getElementById("rWind").textContent=wind+" mph"
+document.getElementById("rDate").textContent=date
+
+let risk="LOW"
+
+if(wind>=60) risk="HIGH"
+else if(wind>=50) risk="MODERATE"
+
+document.getElementById("rRisk").textContent=risk
+
+if(risk==="HIGH"){
+document.getElementById("rRisk").className="bad"
+document.getElementById("why").textContent=
+"High winds were recorded in your area which can cause roof damage."
+}
+
+else if(risk==="MODERATE"){
+document.getElementById("rRisk").className="unknown"
+document.getElementById("why").textContent=
+"Moderate winds were recorded which can sometimes cause roof damage."
+}
+
+else{
+document.getElementById("rRisk").className="good"
+document.getElementById("why").textContent=
+"No strong winds were recorded above common damage thresholds."
+}
+
+}
+
+setStatus("Done. Scroll down to see your storm report.","good")
+
+}catch(e){
+
+console.error(e)
+setStatus("Error contacting storm data service.","bad")
+
+}
+
+}
+
+</script>
+
 </body>
 </html>
